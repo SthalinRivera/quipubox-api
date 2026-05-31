@@ -42,6 +42,7 @@ export class CalidadesService {
   }
 
   async update(id: number, updateCalidadDto: UpdateCalidadDto) {
+    console.log('6Esto es un prueba de git');
     try {
       const updated = await this.prisma.calidades.update({
         where: { id_calidad: BigInt(id) },
