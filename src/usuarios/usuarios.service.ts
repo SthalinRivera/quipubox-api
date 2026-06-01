@@ -9,21 +9,27 @@ export class UsuariosService {
   constructor(private readonly prisma: PrismaService) { }
 
   async create(createUsuarioDto: CreateUsuarioDto) {
-    // Verificar que la empresa existe
     const empresa = await this.prisma.empresas.findUnique({
       where: { id_empresa: BigInt(createUsuarioDto.id_empresa) },
     });
-    if (!empresa) throw new NotFoundException('Empresa no encontrada');
 
-    // Si se envió sede, verificar que pertenece a la empresa
-    if (createUsuarioDto.id_sede) {
-      const sede = await this.prisma.sedes.findFirst({
-        where: {
-          id_sede: BigInt(createUsuarioDto.id_sede),
-          id_empresa: BigInt(createUsuarioDto.id_empresa),
-        },
-      });
-      if (!sede) throw new NotFoundException('Sede no pertenece a la empresa');
+    if (!empresa) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+
+    if (!createUsuarioDto.id_sede) {
+      throw new BadRequestException('La sede es obligatoria');
+    }
+
+    const sede = await this.prisma.sedes.findFirst({
+      where: {
+        id_sede: BigInt(createUsuarioDto.id_sede),
+        id_empresa: BigInt(createUsuarioDto.id_empresa),
+      },
+    });
+
+    if (!sede) {
+      throw new NotFoundException('Sede no pertenece a la empresa');
     }
 
     return this.prisma.usuarios.create({
@@ -37,7 +43,7 @@ export class UsuariosService {
         estado_acceso: createUsuarioDto.estado_acceso ?? 'activo',
         estado: createUsuarioDto.estado ?? true,
         id_empresa: BigInt(createUsuarioDto.id_empresa),
-        id_sede: createUsuarioDto.id_sede ? BigInt(createUsuarioDto.id_sede) : undefined,
+        id_sede: BigInt(createUsuarioDto.id_sede),
       },
     });
   }
