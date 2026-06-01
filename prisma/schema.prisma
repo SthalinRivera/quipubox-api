@@ -626,7 +626,7 @@ model tipos_jaba {
 model usuarios {
   id_usuario                                                           BigInt                      @id @default(autoincrement())
   id_empresa                                                           BigInt
-  id_sede                                                              BigInt?
+  id_sede                                                              BigInt
   nombres                                                              String
   apellidos                                                            String?
   telefono                                                             String?
@@ -646,7 +646,7 @@ model usuarios {
   operaciones_carga_operaciones_carga_id_repartidor_asignadoTousuarios operaciones_carga[]         @relation("operaciones_carga_id_repartidor_asignadoTousuarios")
   recuperaciones_jabas                                                 recuperaciones_jabas[]
   empresas                                                             empresas                    @relation(fields: [id_empresa], references: [id_empresa], onDelete: Cascade, onUpdate: NoAction)
-  sedes                                                                sedes?                      @relation(fields: [id_sede], references: [id_sede], onUpdate: NoAction)
+  sedes                                                                sedes                       @relation(fields: [id_sede], references: [id_sede], onDelete: SetNull, onUpdate: NoAction)
   usuarios_roles                                                       usuarios_roles[]
 
   @@unique([id_empresa, email], map: "uq_usuario_empresa_email")
