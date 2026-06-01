@@ -43,7 +43,7 @@ export class UsuariosController {
     return this.usuariosService.activarAcceso(id);
   }
   @Post(':id/roles')
-  assignRole(@Param('id', ParseIntPipe) id: number, @Body('id_rol') rolId: number) {
+  assignRole(@Param('id', ParseIntPipe) id: number, @Body('id_rol_usuario') rolId: number) {
     return this.usuariosService.assignRole(id, rolId);
   }
 
