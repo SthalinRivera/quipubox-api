@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { SupabaseAuthGuard } from './auth/supabase-auth/supabase-auth.guard';
-import { CurrentUser } from './auth/current-user/current-user.decorator';
+import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
+import { CurrentUser } from './common/decorator/current-user.decorator';
 
 @Controller()
 export class AppController {
