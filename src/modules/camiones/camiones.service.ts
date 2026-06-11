@@ -25,9 +25,11 @@ export class CamionesService {
     });
   }
 
-  async findAll() {
+  async findAll(estado?: boolean) {
+    const where: any = {};
+    if (estado !== undefined) where.estado = estado;
     return this.prisma.camiones.findMany({
-      where: { estado: true },
+      where,
       include: { empresas: true },
       orderBy: { placa: 'asc' },
     });
@@ -62,17 +64,7 @@ export class CamionesService {
     }
   }
 
-  async remove(id: number) {
-    // Soft delete: cambiar estado a false
-    try {
-      const updated = await this.prisma.camiones.update({
-        where: { id_camion: BigInt(id) },
-        data: { estado: false },
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Camión con ID ${id} no encontrado`);
-      throw error;
-    }
+  async changeState(id: number, estado: boolean) {
+    return this.update(id, { estado });
   }
 }

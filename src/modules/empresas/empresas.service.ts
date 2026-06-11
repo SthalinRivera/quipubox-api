@@ -1,6 +1,5 @@
-// src/empresas/empresas.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../config/prisma/prisma.service'; // asume que tienes PrismaModule global
+import { PrismaService } from '../../config/prisma/prisma.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { Empresa } from './entities/empresa.entity';
@@ -8,6 +7,15 @@ import { Empresa } from './entities/empresa.entity';
 @Injectable()
 export class EmpresasService {
   constructor(private readonly prisma: PrismaService) { }
+
+  // Helper privado para convertir bigint a number
+  private toNumber(empresa: any): Empresa {
+    if (!empresa) return empresa;
+    return {
+      ...empresa,
+      id_empresa: Number(empresa.id_empresa),
+    };
+  }
 
   async create(createEmpresaDto: CreateEmpresaDto): Promise<Empresa> {
     const newEmpresa = await this.prisma.empresas.create({
@@ -20,26 +28,27 @@ export class EmpresasService {
         estado: createEmpresaDto.estado ?? true,
       },
     });
-    return newEmpresa;
+    return this.toNumber(newEmpresa);
   }
 
   async findAll(): Promise<Empresa[]> {
-    return this.prisma.empresas.findMany({
+    const empresas = await this.prisma.empresas.findMany({
       orderBy: { id_empresa: 'asc' },
     });
+    return empresas.map(e => this.toNumber(e));
   }
 
-  async findOne(id: bigint | number): Promise<Empresa> {
+  async findOne(id: number): Promise<Empresa> {
     const empresa = await this.prisma.empresas.findUnique({
       where: { id_empresa: BigInt(id) },
     });
     if (!empresa) {
       throw new NotFoundException(`Empresa con ID ${id} no encontrada`);
     }
-    return empresa;
+    return this.toNumber(empresa);
   }
 
-  async update(id: bigint | number, updateEmpresaDto: UpdateEmpresaDto): Promise<Empresa> {
+  async update(id: number, updateEmpresaDto: UpdateEmpresaDto): Promise<Empresa> {
     try {
       const updated = await this.prisma.empresas.update({
         where: { id_empresa: BigInt(id) },
@@ -52,7 +61,7 @@ export class EmpresasService {
           estado: updateEmpresaDto.estado,
         },
       });
-      return updated;
+      return this.toNumber(updated);
     } catch (error: any) {
       if (error.code === 'P2025') {
         throw new NotFoundException(`Empresa con ID ${id} no encontrada`);
@@ -61,16 +70,7 @@ export class EmpresasService {
     }
   }
 
-  async remove(id: bigint | number): Promise<void> {
-    try {
-      await this.prisma.empresas.delete({
-        where: { id_empresa: BigInt(id) },
-      });
-    } catch (error: any) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException(`Empresa con ID ${id} no encontrada`);
-      }
-      throw error;
-    }
+  async changeState(id: number, estado: boolean): Promise<Empresa> {
+    return this.update(id, { estado });
   }
 }

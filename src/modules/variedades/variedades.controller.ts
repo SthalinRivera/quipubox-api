@@ -1,40 +1,54 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { VariedadesService } from './variedades.service';
 import { CreateVariedadDto } from './dto/create-variedade.dto';
 import { UpdateVariedadDto } from './dto/update-variedade.dto';
+import { UpdateStateDto } from './dto/update-state.dto';
 
+@ApiTags('Variedades')
 @Controller('variedades')
 export class VariedadesController {
   constructor(private readonly variedadesService: VariedadesService) { }
 
   @Post()
+  @ApiOperation({ summary: 'Crear una nueva variedad' })
   create(@Body() createVariedadDto: CreateVariedadDto) {
     return this.variedadesService.create(createVariedadDto);
   }
 
   @Get()
-  findAll() {
-    return this.variedadesService.findAll();
+  @ApiOperation({ summary: 'Listar todas las variedades (opcionalmente filtrar por estado)' })
+  findAll(@Query('estado') estado?: string) {
+    const estadoBool = estado === 'true' ? true : estado === 'false' ? false : undefined;
+    return this.variedadesService.findAll(estadoBool);
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Obtener una variedad por ID' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.variedadesService.findOne(id);
   }
 
-  @Put(':id')
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar una variedad' })
   update(@Param('id', ParseIntPipe) id: number, @Body() updateVariedadDto: UpdateVariedadDto) {
     return this.variedadesService.update(id, updateVariedadDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.variedadesService.remove(id);
+  @Patch(':id/estado')
+  @ApiOperation({ summary: 'Activar o desactivar una variedad (soft delete)' })
+  changeState(@Param('id', ParseIntPipe) id: number, @Body() updateStateDto: UpdateStateDto) {
+    return this.variedadesService.changeState(id, updateStateDto.estado);
   }
 
-  // Endpoint especial: listar variedades de una fruta
+  // Endpoint especial: variedades de una fruta específica
   @Get('frutas/:frutaId/variedades')
-  findByFruta(@Param('frutaId', ParseIntPipe) frutaId: number) {
-    return this.variedadesService.findByFruta(frutaId);
+  @ApiOperation({ summary: 'Listar variedades de una fruta (opcionalmente filtrar por estado)' })
+  findByFruta(
+    @Param('frutaId', ParseIntPipe) frutaId: number,
+    @Query('estado') estado?: string,
+  ) {
+    const estadoBool = estado === 'true' ? true : estado === 'false' ? false : undefined;
+    return this.variedadesService.findByFruta(frutaId, estadoBool);
   }
 }

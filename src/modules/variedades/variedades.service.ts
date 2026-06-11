@@ -8,14 +8,13 @@ export class VariedadesService {
   constructor(private readonly prisma: PrismaService) { }
 
   async create(createVariedadDto: CreateVariedadDto) {
-    // Verificar que la fruta y empresa existen
     const fruta = await this.prisma.frutas.findUnique({
-      where: { id_fruta: BigInt(createVariedadDto.id_fruta) }
+      where: { id_fruta: BigInt(createVariedadDto.id_fruta) },
     });
     if (!fruta) throw new NotFoundException('Fruta no encontrada');
 
     const empresa = await this.prisma.empresas.findUnique({
-      where: { id_empresa: BigInt(createVariedadDto.id_empresa) }
+      where: { id_empresa: BigInt(createVariedadDto.id_empresa) },
     });
     if (!empresa) throw new NotFoundException('Empresa no encontrada');
 
@@ -27,35 +26,39 @@ export class VariedadesService {
         descripcion: createVariedadDto.descripcion,
         estado: createVariedadDto.estado ?? true,
       },
-      include: { frutas: true, empresas: true }
-    });
-  }
-
-  async findAll() {
-    return this.prisma.variedades.findMany({
-      where: { estado: true },
       include: { frutas: true, empresas: true },
-      orderBy: { nombre: 'asc' }
     });
   }
 
-  async findByFruta(frutaId: number) {
+  async findAll(estado?: boolean) {
+    const where: any = {};
+    if (estado !== undefined) where.estado = estado;
+    return this.prisma.variedades.findMany({
+      where,
+      include: { frutas: true, empresas: true },
+      orderBy: { nombre: 'asc' },
+    });
+  }
+
+  async findByFruta(frutaId: number, estado?: boolean) {
     const fruta = await this.prisma.frutas.findUnique({
-      where: { id_fruta: BigInt(frutaId) }
+      where: { id_fruta: BigInt(frutaId) },
     });
     if (!fruta) throw new NotFoundException(`Fruta con ID ${frutaId} no encontrada`);
 
+    const where: any = { id_fruta: BigInt(frutaId) };
+    if (estado !== undefined) where.estado = estado;
     return this.prisma.variedades.findMany({
-      where: { id_fruta: BigInt(frutaId), estado: true },
+      where,
       include: { frutas: true, empresas: true },
-      orderBy: { nombre: 'asc' }
+      orderBy: { nombre: 'asc' },
     });
   }
 
   async findOne(id: number) {
     const variedad = await this.prisma.variedades.findUnique({
       where: { id_variedad: BigInt(id) },
-      include: { frutas: true, empresas: true }
+      include: { frutas: true, empresas: true },
     });
     if (!variedad) throw new NotFoundException(`Variedad con ID ${id} no encontrada`);
     return variedad;
@@ -72,7 +75,7 @@ export class VariedadesService {
           id_empresa: updateVariedadDto.id_empresa ? BigInt(updateVariedadDto.id_empresa) : undefined,
           id_fruta: updateVariedadDto.id_fruta ? BigInt(updateVariedadDto.id_fruta) : undefined,
         },
-        include: { frutas: true, empresas: true }
+        include: { frutas: true, empresas: true },
       });
       return updated;
     } catch (error: any) {
@@ -81,17 +84,7 @@ export class VariedadesService {
     }
   }
 
-  async remove(id: number) {
-    // Soft delete
-    try {
-      const updated = await this.prisma.variedades.update({
-        where: { id_variedad: BigInt(id) },
-        data: { estado: false }
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Variedad con ID ${id} no encontrada`);
-      throw error;
-    }
+  async changeState(id: number, estado: boolean) {
+    return this.update(id, { estado });
   }
 }

@@ -1,4 +1,3 @@
-// src/roles-usuarios/roles-usuarios.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma/prisma.service';
 import { CreateRolDto } from './dto/create-roles-usuario.dto';
@@ -18,8 +17,11 @@ export class RolesUsuariosService {
     });
   }
 
-  async findAll() {
+  async findAll(estado?: boolean) {
+    const where: any = {};
+    if (estado !== undefined) where.estado = estado;
     return this.prisma.roles_usuarios.findMany({
+      where,
       orderBy: { id_rol_usuario: 'asc' },
       include: { usuarios_roles: true },
     });
@@ -51,17 +53,7 @@ export class RolesUsuariosService {
     }
   }
 
-  async remove(id: number) {
-    // Desactivar rol (soft delete)
-    try {
-      const updated = await this.prisma.roles_usuarios.update({
-        where: { id_rol_usuario: BigInt(id) },
-        data: { estado: false },
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Rol con ID ${id} no encontrado`);
-      throw error;
-    }
+  async changeState(id: number, estado: boolean) {
+    return this.update(id, { estado });
   }
 }

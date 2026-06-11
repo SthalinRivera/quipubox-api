@@ -9,7 +9,7 @@ export class CalidadesService {
 
   async create(createCalidadDto: CreateCalidadDto) {
     const empresa = await this.prisma.empresas.findUnique({
-      where: { id_empresa: BigInt(createCalidadDto.id_empresa) }
+      where: { id_empresa: BigInt(createCalidadDto.id_empresa) },
     });
     if (!empresa) throw new NotFoundException('Empresa no encontrada');
 
@@ -20,29 +20,30 @@ export class CalidadesService {
         descripcion: createCalidadDto.descripcion,
         estado: createCalidadDto.estado ?? true,
       },
-      include: { empresas: true }
+      include: { empresas: true },
     });
   }
 
-  async findAll() {
+  async findAll(estado?: boolean) {
+    const where: any = {};
+    if (estado !== undefined) where.estado = estado;
     return this.prisma.calidades.findMany({
-      where: { estado: true },
+      where,
       include: { empresas: true },
-      orderBy: { nombre: 'asc' }
+      orderBy: { nombre: 'asc' },
     });
   }
 
   async findOne(id: number) {
     const calidad = await this.prisma.calidades.findUnique({
       where: { id_calidad: BigInt(id) },
-      include: { empresas: true }
+      include: { empresas: true },
     });
     if (!calidad) throw new NotFoundException(`Calidad con ID ${id} no encontrada`);
     return calidad;
   }
 
   async update(id: number, updateCalidadDto: UpdateCalidadDto) {
-    console.log('6Esto es un prueba de git');
     try {
       const updated = await this.prisma.calidades.update({
         where: { id_calidad: BigInt(id) },
@@ -52,7 +53,7 @@ export class CalidadesService {
           estado: updateCalidadDto.estado,
           id_empresa: updateCalidadDto.id_empresa ? BigInt(updateCalidadDto.id_empresa) : undefined,
         },
-        include: { empresas: true }
+        include: { empresas: true },
       });
       return updated;
     } catch (error: any) {
@@ -61,17 +62,7 @@ export class CalidadesService {
     }
   }
 
-  async remove(id: number) {
-    // Soft delete
-    try {
-      const updated = await this.prisma.calidades.update({
-        where: { id_calidad: BigInt(id) },
-        data: { estado: false }
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Calidad con ID ${id} no encontrada`);
-      throw error;
-    }
+  async changeState(id: number, estado: boolean) {
+    return this.update(id, { estado });
   }
 }

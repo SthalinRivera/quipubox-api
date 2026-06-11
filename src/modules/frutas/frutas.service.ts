@@ -8,9 +8,8 @@ export class FrutasService {
   constructor(private readonly prisma: PrismaService) { }
 
   async create(createFrutaDto: CreateFrutaDto) {
-    // Verificar que la empresa existe
     const empresa = await this.prisma.empresas.findUnique({
-      where: { id_empresa: BigInt(createFrutaDto.id_empresa) }
+      where: { id_empresa: BigInt(createFrutaDto.id_empresa) },
     });
     if (!empresa) throw new NotFoundException('Empresa no encontrada');
 
@@ -21,22 +20,24 @@ export class FrutasService {
         descripcion: createFrutaDto.descripcion,
         estado: createFrutaDto.estado ?? true,
       },
-      include: { empresas: true }
+      include: { empresas: true, variedades: true },
     });
   }
 
-  async findAll() {
+  async findAll(estado?: boolean) {
+    const where: any = {};
+    if (estado !== undefined) where.estado = estado;
     return this.prisma.frutas.findMany({
-      where: { estado: true }, // solo activas por defecto
+      where,
       include: { empresas: true, variedades: true },
-      orderBy: { nombre: 'asc' }
+      orderBy: { nombre: 'asc' },
     });
   }
 
   async findOne(id: number) {
     const fruta = await this.prisma.frutas.findUnique({
       where: { id_fruta: BigInt(id) },
-      include: { empresas: true, variedades: true }
+      include: { empresas: true, variedades: true },
     });
     if (!fruta) throw new NotFoundException(`Fruta con ID ${id} no encontrada`);
     return fruta;
@@ -52,7 +53,7 @@ export class FrutasService {
           estado: updateFrutaDto.estado,
           id_empresa: updateFrutaDto.id_empresa ? BigInt(updateFrutaDto.id_empresa) : undefined,
         },
-        include: { empresas: true, variedades: true }
+        include: { empresas: true, variedades: true },
       });
       return updated;
     } catch (error: any) {
@@ -61,17 +62,7 @@ export class FrutasService {
     }
   }
 
-  async remove(id: number) {
-    // Soft delete: cambiar estado a false
-    try {
-      const updated = await this.prisma.frutas.update({
-        where: { id_fruta: BigInt(id) },
-        data: { estado: false }
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Fruta con ID ${id} no encontrada`);
-      throw error;
-    }
+  async changeState(id: number, estado: boolean) {
+    return this.update(id, { estado });
   }
 }

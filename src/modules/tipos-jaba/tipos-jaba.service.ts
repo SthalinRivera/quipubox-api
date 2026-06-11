@@ -9,7 +9,7 @@ export class TiposJabaService {
 
   async create(createTipoJabaDto: CreateTipoJabaDto) {
     const empresa = await this.prisma.empresas.findUnique({
-      where: { id_empresa: BigInt(createTipoJabaDto.id_empresa) }
+      where: { id_empresa: BigInt(createTipoJabaDto.id_empresa) },
     });
     if (!empresa) throw new NotFoundException('Empresa no encontrada');
 
@@ -21,22 +21,24 @@ export class TiposJabaService {
         descripcion: createTipoJabaDto.descripcion,
         estado: createTipoJabaDto.estado ?? true,
       },
-      include: { empresas: true }
+      include: { empresas: true },
     });
   }
 
-  async findAll() {
+  async findAll(estado?: boolean) {
+    const where: any = {};
+    if (estado !== undefined) where.estado = estado;
     return this.prisma.tipos_jaba.findMany({
-      where: { estado: true },
+      where,
       include: { empresas: true },
-      orderBy: { nombre: 'asc' }
+      orderBy: { nombre: 'asc' },
     });
   }
 
   async findOne(id: number) {
     const tipo = await this.prisma.tipos_jaba.findUnique({
       where: { id_tipo_jaba: BigInt(id) },
-      include: { empresas: true }
+      include: { empresas: true },
     });
     if (!tipo) throw new NotFoundException(`Tipo de jaba con ID ${id} no encontrado`);
     return tipo;
@@ -53,7 +55,7 @@ export class TiposJabaService {
           estado: updateTipoJabaDto.estado,
           id_empresa: updateTipoJabaDto.id_empresa ? BigInt(updateTipoJabaDto.id_empresa) : undefined,
         },
-        include: { empresas: true }
+        include: { empresas: true },
       });
       return updated;
     } catch (error: any) {
@@ -62,17 +64,7 @@ export class TiposJabaService {
     }
   }
 
-  async remove(id: number) {
-    // Soft delete
-    try {
-      const updated = await this.prisma.tipos_jaba.update({
-        where: { id_tipo_jaba: BigInt(id) },
-        data: { estado: false }
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Tipo de jaba con ID ${id} no encontrado`);
-      throw error;
-    }
+  async changeState(id: number, estado: boolean) {
+    return this.update(id, { estado });
   }
 }

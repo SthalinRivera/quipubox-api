@@ -1,22 +1,28 @@
 import { IsString, IsOptional, IsBoolean, IsInt, MaxLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCamionDto {
-    @IsInt()
-    id_empresa: number;
+  @ApiProperty({ example: 1 })
+  @IsInt()
+  id_empresa!: number;
 
-    @IsString()
-    @MaxLength(20)
-    placa: string;
+  @ApiProperty({ example: 'ABC-123' })
+  @IsString()
+  @MaxLength(20)
+  placa!: string;
 
-    @IsOptional()
-    @IsString()
-    observaciones?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  observaciones?: string;
 
-    @IsOptional()
-    @IsString()
-    descripcion?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  descripcion?: string;
 
-    @IsOptional()
-    @IsBoolean()
-    estado?: boolean;
+  @ApiProperty({ default: true, required: false })
+  @IsOptional()
+  @IsBoolean()
+  estado?: boolean;
 }

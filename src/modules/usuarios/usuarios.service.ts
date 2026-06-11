@@ -1,4 +1,3 @@
-// src/usuarios/usuarios.service.ts
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
@@ -12,10 +11,7 @@ export class UsuariosService {
     const empresa = await this.prisma.empresas.findUnique({
       where: { id_empresa: BigInt(createUsuarioDto.id_empresa) },
     });
-
-    if (!empresa) {
-      throw new NotFoundException('Empresa no encontrada');
-    }
+    if (!empresa) throw new NotFoundException('Empresa no encontrada');
 
     if (!createUsuarioDto.id_sede) {
       throw new BadRequestException('La sede es obligatoria');
@@ -27,10 +23,7 @@ export class UsuariosService {
         id_empresa: BigInt(createUsuarioDto.id_empresa),
       },
     });
-
-    if (!sede) {
-      throw new NotFoundException('Sede no pertenece a la empresa');
-    }
+    if (!sede) throw new NotFoundException('Sede no pertenece a la empresa');
 
     return this.prisma.usuarios.create({
       data: {
@@ -53,9 +46,7 @@ export class UsuariosService {
       include: {
         empresas: true,
         sedes: true,
-        usuarios_roles: {
-          include: { roles_usuarios: true },
-        },
+        usuarios_roles: { include: { roles_usuarios: true } },
       },
       orderBy: { id_usuario: 'asc' },
     });
@@ -67,18 +58,16 @@ export class UsuariosService {
       include: {
         empresas: true,
         sedes: true,
-        usuarios_roles: {
-          include: { roles_usuarios: true },
-        },
+        usuarios_roles: { include: { roles_usuarios: true } },
       },
     });
     if (!usuario) throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     return usuario;
   }
 
+  // PUT: actualización completa (se envía todo el objeto)
   async update(id: number, updateUsuarioDto: UpdateUsuarioDto) {
     try {
-      // Si actualiza empresa o sede, validar relaciones
       if (updateUsuarioDto.id_empresa) {
         const empresa = await this.prisma.empresas.findUnique({
           where: { id_empresa: BigInt(updateUsuarioDto.id_empresa) },
@@ -117,28 +106,16 @@ export class UsuariosService {
     }
   }
 
-  async remove(id: number) {
-    try {
-      // Primero eliminamos las relaciones en usuarios_roles (si las hay)
-      await this.prisma.usuarios_roles.deleteMany({
-        where: { id_usuario: BigInt(id) },
-      });
-      // Luego eliminamos el usuario
-      const deleted = await this.prisma.usuarios.delete({
-        where: { id_usuario: BigInt(id) },
-      });
-      return deleted;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
-      throw error;
-    }
+  // Soft delete: cambiar estado a false
+  async changeState(id: number, estado: boolean) {
+    return this.update(id, { estado } as any);
   }
 
-  async bloquearAcceso(id: number) {
+  async cambiarEstadoAcceso(id: number, estadoAcceso: 'activo' | 'bloqueado') {
     try {
       const updated = await this.prisma.usuarios.update({
         where: { id_usuario: BigInt(id) },
-        data: { estado_acceso: 'bloqueado' },
+        data: { estado_acceso: estadoAcceso },
       });
       return updated;
     } catch (error: any) {
@@ -147,71 +124,56 @@ export class UsuariosService {
     }
   }
 
-  async activarAcceso(id: number) {
-    try {
-      const updated = await this.prisma.usuarios.update({
-        where: { id_usuario: BigInt(id) },
-        data: { estado_acceso: 'activo' },
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
-      throw error;
-    }
-  }
-
-
+  // Asignar rol
   async assignRole(usuarioId: number, rolId: number) {
     const usuario = await this.prisma.usuarios.findUnique({
-      where: { id_usuario: BigInt(usuarioId) }
+      where: { id_usuario: BigInt(usuarioId) },
     });
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
 
     const rol = await this.prisma.roles_usuarios.findUnique({
-      where: { id_rol_usuario: BigInt(rolId) }
+      where: { id_rol_usuario: BigInt(rolId) },
     });
     if (!rol) throw new NotFoundException('Rol no encontrado');
 
     const existing = await this.prisma.usuarios_roles.findFirst({
       where: {
         id_usuario: BigInt(usuarioId),
-        id_rol_usuario: BigInt(rolId)
-      }
+        id_rol_usuario: BigInt(rolId),
+      },
     });
     if (existing) throw new BadRequestException('El usuario ya tiene este rol');
 
     return this.prisma.usuarios_roles.create({
       data: {
         id_usuario: BigInt(usuarioId),
-        id_rol_usuario: BigInt(rolId)
-      }
+        id_rol_usuario: BigInt(rolId),
+      },
     });
   }
 
+  // Eliminar rol
   async removeRole(usuarioId: number, rolId: number) {
     const relation = await this.prisma.usuarios_roles.findFirst({
       where: {
         id_usuario: BigInt(usuarioId),
-        id_rol_usuario: BigInt(rolId)
-      }
+        id_rol_usuario: BigInt(rolId),
+      },
     });
     if (!relation) throw new NotFoundException('Relación usuario-rol no encontrada');
 
     return this.prisma.usuarios_roles.delete({
-      where: { id_usuario_rol: relation.id_usuario_rol }
+      where: { id_usuario_rol: relation.id_usuario_rol },
     });
   }
 
+  // Obtener roles de un usuario
   async getRolesByUser(usuarioId: number) {
     const usuario = await this.prisma.usuarios.findUnique({
       where: { id_usuario: BigInt(usuarioId) },
-      include: {
-        usuarios_roles: {
-          include: { roles_usuarios: true }
-        }
-      }
+      include: { usuarios_roles: { include: { roles_usuarios: true } } },
     });
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
-    return usuario.usuarios_roles.map(ur => ur.roles_usuarios);
+    return usuario.usuarios_roles.map((ur) => ur.roles_usuarios);
   }
 }

@@ -1,14 +1,18 @@
-// src/roles-usuarios/dto/create-rol.dto.ts
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, MaxLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateRolDto {
+    @ApiProperty({ example: 'Administrador' })
     @IsString()
-    nombre: string;
+    @MaxLength(100)
+    nombre!: string;
 
+    @ApiProperty({ required: false })
     @IsOptional()
     @IsString()
     descripcion?: string;
 
+    @ApiProperty({ default: true, required: false })
     @IsOptional()
     @IsBoolean()
     estado?: boolean;

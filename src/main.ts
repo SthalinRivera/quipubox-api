@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { BigIntInterceptor } from './common/interceptors/bigint.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -7,7 +8,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // 1. Habilitar CORS (necesario para tu frontend)
+  // 1. Habilitar CORS
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,
@@ -15,19 +16,31 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // 2. Validación global de DTOs (si usas class-validator)
+  // 2. Validación global de DTOs
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
     transform: true,
   }));
 
-  // 3. Interceptor global para convertir BigInt a Number (o string)
+  // 3. Interceptor y filtro global
   app.useGlobalInterceptors(new BigIntInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
-  // 4. Iniciar servidor
+
+  // 4. Configuración de Swagger (OpenAPI)
+  const config = new DocumentBuilder()
+    .setTitle('API de Gestión Empresarial')
+    .setDescription('API para administrar empresas, clientes, operaciones, etc. (sin borrado físico)')
+    .setVersion('1.0')
+    .addBearerAuth() // si usas autenticación JWT
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document); // Ruta: /api/docs
+
+  // 5. Iniciar servidor
   const port = process.env.PORT ?? 4000;
   await app.listen(port);
   console.log(`🚀 Server running on http://localhost:${port}`);
+  console.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
 }
 bootstrap();

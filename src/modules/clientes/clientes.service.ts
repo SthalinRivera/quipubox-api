@@ -10,11 +10,7 @@ import { QueryClientesDto } from './dto/query-clientes.dto';
 export class ClientesService {
   constructor(private readonly prisma: PrismaService) { }
 
-  /**
-   * Crea un nuevo cliente.
-   * @param createClienteDto - Datos del cliente a crear.
-   * @returns Cliente creado con sus relaciones (empresa, sedes, puestos).
-   */
+
   async create(createClienteDto: CreateClienteDto) {
     // Verificar que la empresa exista
     const empresa = await this.prisma.empresas.findUnique({
@@ -40,11 +36,6 @@ export class ClientesService {
     });
   }
 
-  /**
-   * Obtiene todos los clientes (sin paginación). Útil para selects o exportaciones.
-   * @param buscar - Texto opcional para filtrar por nombre, apellido, apodo o teléfono.
-   * @returns Lista completa de clientes.
-   */
   async findAll(buscar?: string) {
     const where: any = {};
     if (buscar) {
@@ -63,15 +54,11 @@ export class ClientesService {
         cliente_sede: { include: { sedes: true } },
         clientes_puestos: { include: { puestos: true } }
       },
-      orderBy: { id_cliente: 'asc' }
+      orderBy: { id_cliente: 'desc' }
     });
   }
 
-  /**
-   * Obtiene clientes con paginación y filtros. Es el método principal para la tabla.
-   * @param query - Parámetros de paginación (page, limit), búsqueda y estado.
-   * @returns Objeto con data, total, page, limit, totalPages.
-   */
+
   async findAllPaginated(query: QueryClientesDto) {
     const { page = 1, limit = 10, buscar, estado = 'todos', tipo_relacion = 'todos' } = query;
     const skip = (page - 1) * limit;
@@ -129,11 +116,7 @@ export class ClientesService {
     };
   }
 
-  /**
-   * Obtiene un cliente por su ID con todas sus relaciones.
-   * @param id - ID del cliente.
-   * @returns Cliente encontrado.
-   */
+
   async findOne(id: number) {
     const cliente = await this.prisma.clientes.findUnique({
       where: { id_cliente: BigInt(id) },
@@ -147,12 +130,7 @@ export class ClientesService {
     return cliente;
   }
 
-  /**
-   * Actualiza los datos de un cliente.
-   * @param id - ID del cliente a actualizar.
-   * @param updateClienteDto - Datos a modificar.
-   * @returns Cliente actualizado.
-   */
+
   async update(id: number, updateClienteDto: UpdateClienteDto) {
     try {
       const updated = await this.prisma.clientes.update({
@@ -179,16 +157,17 @@ export class ClientesService {
     }
   }
 
-  /**
-   * "Elimina" un cliente cambiando su estado a false (soft delete).
-   * @param id - ID del cliente.
-   * @returns Cliente actualizado con estado false.
-   */
-  async remove(id: number) {
+
+  async changeState(id: number, estado: boolean) {
     try {
       const updated = await this.prisma.clientes.update({
         where: { id_cliente: BigInt(id) },
-        data: { estado: false }
+        data: { estado },
+        include: {
+          empresas: true,
+          cliente_sede: { include: { sedes: true } },
+          clientes_puestos: { include: { puestos: true } }
+        }
       });
       return updated;
     } catch (error: any) {
@@ -197,15 +176,7 @@ export class ClientesService {
     }
   }
 
-  // ------------------------------------------------------------
-  // GESTIÓN DE SEDES ASOCIADAS AL CLIENTE (CLIENTE_SEDE)
-  // ------------------------------------------------------------
 
-  /**
-   * Asocia una sede a un cliente (crea un registro en cliente_sede).
-   * @param dto - Objeto con id_cliente, id_sede, tipo_relacion.
-   * @returns Relación creada con los datos de cliente y sede.
-   */
   async associateSede(dto: ClienteSedeDto) {
     const cliente = await this.prisma.clientes.findUnique({
       where: { id_cliente: BigInt(dto.id_cliente) }
@@ -239,11 +210,7 @@ export class ClientesService {
     });
   }
 
-  /**
-   * Obtiene todas las sedes activas asociadas a un cliente.
-   * @param id - ID del cliente.
-   * @returns Lista de relaciones cliente_sede (con estado true).
-   */
+
   async getSedesByCliente(id: number) {
     const cliente = await this.prisma.clientes.findUnique({
       where: { id_cliente: BigInt(id) },
@@ -258,13 +225,7 @@ export class ClientesService {
     return cliente.cliente_sede;
   }
 
-  /**
-   * Actualiza el tipo de relación (emisor/receptor/ambos) de una sede ya asociada.
-   * @param clienteId - ID del cliente.
-   * @param sedeId - ID de la sede.
-   * @param tipoRelacion - Nuevo tipo de relación.
-   * @returns Relación actualizada.
-   */
+
   async updateSedeRelacion(clienteId: number, sedeId: number, tipoRelacion: string) {
     const valoresValidos = ['emisor', 'receptor', 'ambos'];
     if (!valoresValidos.includes(tipoRelacion)) {
@@ -290,16 +251,7 @@ export class ClientesService {
     });
   }
 
-  /**
-   * ELIMINA FÍSICAMENTE la relación entre un cliente y una sede (hard delete).
-   * Ya no solo cambia estado a false, sino que borra el registro de la tabla.
-   * Esto es lo ideal para este caso porque la relación es simplemente una asociación
-   * sin dependencias externas (no hay otras tablas que referencien a cliente_sede).
-   *
-   * @param clienteId - ID del cliente.
-   * @param sedeId - ID de la sede.
-   * @returns La relación eliminada (o null si no existía).
-   */
+
   async removeSede(clienteId: number, sedeId: number) {
     // Buscar la relación activa (estado true)
     const relation = await this.prisma.cliente_sede.findFirst({
@@ -320,16 +272,7 @@ export class ClientesService {
     });
   }
 
-  // ------------------------------------------------------------
-  // GESTIÓN DE PUESTOS ASOCIADOS AL CLIENTE (CLIENTES_PUESTOS)
-  // ------------------------------------------------------------
 
-  /**
-   * Asigna un puesto a un cliente (crea un registro en clientes_puestos).
-   * @param clienteId - ID del cliente.
-   * @param dto - Objeto con id_puesto y fecha_inicio opcional.
-   * @returns Relación creada.
-   */
   async assignPuesto(clienteId: number, dto: AsignarPuestoDto) {
     const cliente = await this.prisma.clientes.findUnique({
       where: { id_cliente: BigInt(clienteId) }
@@ -363,12 +306,7 @@ export class ClientesService {
       include: { puestos: true }
     });
   }
-  /**
-   * Elimina (soft delete) la asignación de un puesto a un cliente, estableciendo fecha_fin y estado false.
-   * @param clienteId - ID del cliente.
-   * @param puestoId - ID del puesto.
-   * @returns Relación actualizada con fecha_fin.
-   */
+
   async removePuesto(clienteId: number, puestoId: number) {
     const relation = await this.prisma.clientes_puestos.findFirst({
       where: {
@@ -385,11 +323,6 @@ export class ClientesService {
     });
   }
 
-  /**
-   * Obtiene los puestos activos actualmente asignados a un cliente.
-   * @param clienteId - ID del cliente.
-   * @returns Lista de relaciones clientes_puestos (con fecha_fin null).
-   */
   async getPuestosByCliente(clienteId: number) {
     const cliente = await this.prisma.clientes.findUnique({
       where: { id_cliente: BigInt(clienteId) },

@@ -7,7 +7,8 @@ import { UpdateClienteDto } from './dto/update-cliente.dto';
 import { ClienteSedeDto } from './dto/cliente-sede.dto';
 import { AsignarPuestoDto } from './dto/asignar-puesto.dto';
 import { QueryClientesDto } from './dto/query-clientes.dto';
-
+import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
+import { UpdateStateDto } from './dto/update-state.dto'; // o desde common/dto
 @Controller('clientes')
 export class ClientesController {
   constructor(private readonly clientesService: ClientesService) { }
@@ -46,10 +47,7 @@ export class ClientesController {
     return this.clientesService.update(id, updateClienteDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.clientesService.remove(id);
-  }
+
 
   // Endpoints para sedes del cliente
   @Get(':id/sedes')
@@ -89,7 +87,13 @@ export class ClientesController {
   assignPuesto(@Param('id', ParseIntPipe) id: number, @Body() dto: AsignarPuestoDto) {
     return this.clientesService.assignPuesto(id, dto);
   }
-
+  @Patch(':id/estado')
+  @ApiOperation({ summary: 'Activar o desactivar un cliente (soft delete)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBody({ type: UpdateStateDto })
+  changeState(@Param('id', ParseIntPipe) id: number, @Body() updateStateDto: UpdateStateDto) {
+    return this.clientesService.changeState(id, updateStateDto.estado);
+  }
   @Delete(':id/puestos/:puestoId')
   removePuesto(
     @Param('id', ParseIntPipe) id: number,

@@ -8,13 +8,11 @@ export class PuestosService {
   constructor(private readonly prisma: PrismaService) { }
 
   async create(createPuestoDto: CreatePuestoDto) {
-    // Verificar empresa
     const empresa = await this.prisma.empresas.findUnique({
       where: { id_empresa: BigInt(createPuestoDto.id_empresa) },
     });
     if (!empresa) throw new NotFoundException('Empresa no encontrada');
 
-    // Verificar mercado (lugar_operativo tipo mercado)
     const mercado = await this.prisma.lugares_operativos.findFirst({
       where: {
         id_lugar: BigInt(createPuestoDto.id_lugar),
@@ -35,16 +33,18 @@ export class PuestosService {
     });
   }
 
-  async findAll() {
+  async findAll(estado?: boolean) {
+    const where: any = {};
+    if (estado !== undefined) where.estado = estado;
     return this.prisma.puestos.findMany({
-      where: { estado: true },
+      where,
       include: {
         empresas: true,
         lugares_operativos: {
-          include: { sedes: true }   // ✅ incluye sedes dentro del mercado
-        }
+          include: { sedes: true },
+        },
       },
-      orderBy: { numero_puesto: 'asc' }
+      orderBy: { numero_puesto: 'asc' },
     });
   }
 
@@ -59,7 +59,6 @@ export class PuestosService {
 
   async update(id: number, updatePuestoDto: UpdatePuestoDto) {
     try {
-      // Si se actualiza el mercado, verificar que exista y sea tipo mercado
       if (updatePuestoDto.id_lugar) {
         const mercado = await this.prisma.lugares_operativos.findFirst({
           where: {
@@ -88,18 +87,7 @@ export class PuestosService {
     }
   }
 
-  async remove(id: number) {
-    try {
-      const updated = await this.prisma.puestos.update({
-        where: { id_puesto: BigInt(id) },
-        data: { estado: false },
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Puesto con ID ${id} no encontrado`);
-      throw error;
-    }
+  async changeState(id: number, estado: boolean) {
+    return this.update(id, { estado });
   }
-
-
 }

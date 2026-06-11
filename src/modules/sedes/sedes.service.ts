@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma/prisma.service';
 import { CreateSedeDto } from './dto/create-sede.dto';
 import { UpdateSedeDto } from './dto/update-sede.dto';
@@ -8,14 +8,11 @@ export class SedesService {
   constructor(private readonly prisma: PrismaService) { }
 
   async create(createSedeDto: CreateSedeDto) {
-    // Verificar que la empresa existe
     const empresa = await this.prisma.empresas.findUnique({
       where: { id_empresa: BigInt(createSedeDto.id_empresa) },
     });
     if (!empresa) throw new NotFoundException('Empresa no encontrada');
 
-    // Verificar que no exista otra sede con el mismo nombre para la misma empresa (unique en base de datos)
-    // La base de datos ya tiene unique constraint (id_empresa, nombre), por lo que Prisma lanzará error P2002 si se duplica.
     return this.prisma.sedes.create({
       data: {
         id_empresa: BigInt(createSedeDto.id_empresa),
@@ -32,10 +29,7 @@ export class SedesService {
 
   async findAll(tipo?: string) {
     const where: any = {};
-    if (tipo) {
-      // Filtrar por tipo_sede (origen, destino, ambos)
-      where.tipo_sede = tipo;
-    }
+    if (tipo) where.tipo_sede = tipo;
     return this.prisma.sedes.findMany({
       where,
       include: { empresas: true },
@@ -74,17 +68,7 @@ export class SedesService {
     }
   }
 
-  async remove(id: number) {
-    // Soft delete: cambiar estado a false
-    try {
-      const updated = await this.prisma.sedes.update({
-        where: { id_sede: BigInt(id) },
-        data: { estado: false },
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Sede con ID ${id} no encontrada`);
-      throw error;
-    }
+  async changeState(id: number, estado: boolean) {
+    return this.update(id, { estado });
   }
 }
