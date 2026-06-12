@@ -43,15 +43,6 @@ export class UsuariosController {
     return this.usuariosService.changeState(id, updateStateDto.estado);
   }
 
-  @Patch(':id/estado-acceso')
-  @ApiOperation({ summary: 'Cambiar el estado de acceso (activo/bloqueado)' })
-  @ApiBody({ schema: { example: { estado_acceso: 'activo' } } })
-  changeEstadoAcceso(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('estado_acceso') estadoAcceso: 'activo' | 'bloqueado'
-  ) {
-    return this.usuariosService.cambiarEstadoAcceso(id, estadoAcceso);
-  }
 
   // Asignar rol
   @Post(':id/roles')

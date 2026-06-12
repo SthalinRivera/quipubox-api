@@ -24,9 +24,6 @@ export class CreateUsuarioDto {
     @IsString()
     avatar_url?: string;
 
-    @IsOptional()
-    @IsString()
-    estado_acceso?: string; // 'activo' | 'bloqueado' (default 'activo')
 
     @IsOptional()
     @IsBoolean()

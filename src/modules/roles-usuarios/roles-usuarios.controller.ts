@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Patch, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { RolesUsuariosService } from './roles-usuarios.service';
 import { CreateRolDto } from './dto/create-roles-usuario.dto';
@@ -29,7 +29,7 @@ export class RolesUsuariosController {
     return this.rolesService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @ApiOperation({ summary: 'Actualizar un rol' })
   update(@Param('id', ParseIntPipe) id: number, @Body() updateRolDto: UpdateRolDto) {
     return this.rolesService.update(id, updateRolDto);

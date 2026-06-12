@@ -32,12 +32,11 @@ export class AuthService {
      *
      * Flujo:
      * 1. Extrae información del usuario desde el token.
-     * 2. Busca el usuario en la base de datos.
+     * 2. Busca el usuario en la base de datos (solo si estado = true).
      * 3. Si no existe, rechaza el acceso.
      *    TODO: eliminar el usuario Auth de Supabase si corresponde.
      * 4. Si existe, actualiza sus datos desde Google.
-     * 5. Verifica que el acceso no esté bloqueado.
-     * 6. Retorna el perfil completo del usuario.
+     * 5. Retorna el perfil completo del usuario.
      */
     async getProfile(authPayload: any) {
         try {
@@ -169,12 +168,6 @@ export class AuthService {
                 );
             }
 
-            if (userDb.estado_acceso === 'bloqueado') {
-                throw new UnauthorizedException(
-                    'Acceso denegado. Por favor, contacta al administrador.'
-                );
-            }
-
             const rol = userDb.usuarios_roles?.[0]?.roles_usuarios;
 
             return {
@@ -194,7 +187,6 @@ export class AuthService {
                 apellidos: userDb.apellidos,
                 telefono: userDb.telefono,
                 avatar_url: userDb.avatar_url,
-                estado_acceso: userDb.estado_acceso,
                 estado: userDb.estado,
                 created_at: userDb.created_at,
 

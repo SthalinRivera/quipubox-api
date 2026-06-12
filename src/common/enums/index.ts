@@ -6,11 +6,7 @@ export enum TipoSede {
     AMBOS = 'ambos',
 }
 
-export enum EstadoAccesoUsuario {
-    ACTIVO = 'activo',
-    BLOQUEADO = 'bloqueado',
-    PENDIENTE = 'pendiente',
-}
+
 
 export enum TipoLugar {
     MERCADO = 'mercado',
@@ -118,7 +114,6 @@ export enum TipoEntidadEvidencia {
 
 // ==================== ARRAYS PARA SELECTS ====================
 export const TIPOS_SEDE = Object.values(TipoSede);
-export const ESTADOS_ACCESO = Object.values(EstadoAccesoUsuario);
 export const TIPOS_LUGAR = Object.values(TipoLugar);
 export const ESTADOS_OPERACION = Object.values(EstadoOperacion);
 export const SECCIONES = Object.values(Seccion);

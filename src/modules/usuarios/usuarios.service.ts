@@ -33,7 +33,6 @@ export class UsuariosService {
         email: createUsuarioDto.email,
         google_uid: createUsuarioDto.google_uid,
         avatar_url: createUsuarioDto.avatar_url,
-        estado_acceso: createUsuarioDto.estado_acceso ?? 'activo',
         estado: createUsuarioDto.estado ?? true,
         id_empresa: BigInt(createUsuarioDto.id_empresa),
         id_sede: BigInt(createUsuarioDto.id_sede),
@@ -93,7 +92,6 @@ export class UsuariosService {
           email: updateUsuarioDto.email,
           google_uid: updateUsuarioDto.google_uid,
           avatar_url: updateUsuarioDto.avatar_url,
-          estado_acceso: updateUsuarioDto.estado_acceso,
           estado: updateUsuarioDto.estado,
           id_empresa: updateUsuarioDto.id_empresa ? BigInt(updateUsuarioDto.id_empresa) : undefined,
           id_sede: updateUsuarioDto.id_sede ? BigInt(updateUsuarioDto.id_sede) : undefined,
@@ -111,18 +109,7 @@ export class UsuariosService {
     return this.update(id, { estado } as any);
   }
 
-  async cambiarEstadoAcceso(id: number, estadoAcceso: 'activo' | 'bloqueado') {
-    try {
-      const updated = await this.prisma.usuarios.update({
-        where: { id_usuario: BigInt(id) },
-        data: { estado_acceso: estadoAcceso },
-      });
-      return updated;
-    } catch (error: any) {
-      if (error.code === 'P2025') throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
-      throw error;
-    }
-  }
+
 
   // Asignar rol
   async assignRole(usuarioId: number, rolId: number) {
