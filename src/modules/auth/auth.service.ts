@@ -168,7 +168,11 @@ export class AuthService {
                 );
             }
 
-            const rol = userDb.usuarios_roles?.[0]?.roles_usuarios;
+            const roles = userDb.usuarios_roles.map((ur) => ({
+                id: Number(ur.roles_usuarios.id_rol_usuario),
+                nombre: ur.roles_usuarios.nombre,
+                descripcion: ur.roles_usuarios.descripcion,
+            }));
 
             return {
                 id: Number(userDb.id_usuario),
@@ -190,11 +194,7 @@ export class AuthService {
                 estado: userDb.estado,
                 created_at: userDb.created_at,
 
-                rol: rol ? {
-                    id: Number(rol.id_rol_usuario),
-                    nombre: rol.nombre,
-                    descripcion: rol.descripcion,
-                } : null,
+                roles,
 
                 sede: userDb.sedes ? {
                     id: Number(userDb.sedes.id_sede),
