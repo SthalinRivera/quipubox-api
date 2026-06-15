@@ -1,14 +1,24 @@
 import {
-  Controller, Get, Post, Body, Put, Param, Delete, Query, ParseIntPipe, Patch
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ClientesService } from './clientes.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
+import { QueryClientesDto } from './dto/query-clientes.dto';
 import { ClienteSedeDto } from './dto/cliente-sede.dto';
 import { AsignarPuestoDto } from './dto/asignar-puesto.dto';
-import { QueryClientesDto } from './dto/query-clientes.dto';
-import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
-import { UpdateStateDto } from './dto/update-state.dto'; // o desde common/dto
+import { CreateFullClienteDto } from './dto/create-full-cliente.dto';
+import { UpdateFullClienteDto } from './dto/update-full-cliente.dto';
+
 @Controller('clientes')
 export class ClientesController {
   constructor(private readonly clientesService: ClientesService) { }
@@ -17,26 +27,33 @@ export class ClientesController {
   create(@Body() createClienteDto: CreateClienteDto) {
     return this.clientesService.create(createClienteDto);
   }
-
-  // Endpoint paginado (principal)
-  @Get()
-  findAll(@Query() query: QueryClientesDto) {
-    return this.clientesService.findAllPaginated(query);
+  @Post('full')
+  async createFull(@Body() dto: CreateFullClienteDto) {
+    return this.clientesService.createFull(dto);
+  }
+  @Put(':id/full')
+  async updateFull(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateFullClienteDto) {
+    return this.clientesService.updateFull(id, dto);
   }
 
-  // Endpoint opcional sin paginación (para selects o exportaciones)
+  @Get()
+  findAll(@Query() query: QueryClientesDto) {
+    if (query.page) {
+      return this.clientesService.findAllPaginated(query);
+    }
+    return this.clientesService.findAll(query.buscar);
+  }
+
   @Get('all')
-  findAllUnpaginated(@Query('buscar') buscar?: string) {
+  findAllWithoutPagination(@Query('buscar') buscar?: string) {
     return this.clientesService.findAll(buscar);
   }
 
-  // ✅ NUEVO: debe ir ANTES de @Get(':id')
   @Get('asignaciones-puestos')
-  async findAllClientesPuestos() {
+  findAllClientesPuestos() {
     return this.clientesService.findAllClientesPuestos();
   }
 
-  // ⚠️ Ruta dinámica: debe ir DESPUÉS de todas las rutas fijas
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.clientesService.findOne(id);
@@ -47,9 +64,12 @@ export class ClientesController {
     return this.clientesService.update(id, updateClienteDto);
   }
 
+  @Patch(':id/estado')
+  changeState(@Param('id', ParseIntPipe) id: number, @Body('estado') estado: boolean) {
+    return this.clientesService.changeState(id, estado);
+  }
 
-
-  // Endpoints para sedes del cliente
+  // Sedes
   @Get(':id/sedes')
   getSedes(@Param('id', ParseIntPipe) id: number) {
     return this.clientesService.getSedesByCliente(id);
@@ -70,14 +90,11 @@ export class ClientesController {
   }
 
   @Delete(':id/sedes/:sedeId')
-  removeSede(
-    @Param('id', ParseIntPipe) id: number,
-    @Param('sedeId', ParseIntPipe) sedeId: number,
-  ) {
+  removeSede(@Param('id', ParseIntPipe) id: number, @Param('sedeId', ParseIntPipe) sedeId: number) {
     return this.clientesService.removeSede(id, sedeId);
   }
 
-  // Endpoints para puestos (roles) del cliente
+  // Puestos
   @Get(':id/puestos')
   getPuestos(@Param('id', ParseIntPipe) id: number) {
     return this.clientesService.getPuestosByCliente(id);
@@ -87,17 +104,11 @@ export class ClientesController {
   assignPuesto(@Param('id', ParseIntPipe) id: number, @Body() dto: AsignarPuestoDto) {
     return this.clientesService.assignPuesto(id, dto);
   }
-  @Patch(':id/estado')
-  @ApiOperation({ summary: 'Activar o desactivar un cliente (soft delete)' })
-  @ApiParam({ name: 'id', type: Number })
-  @ApiBody({ type: UpdateStateDto })
-  changeState(@Param('id', ParseIntPipe) id: number, @Body() updateStateDto: UpdateStateDto) {
-    return this.clientesService.changeState(id, updateStateDto.estado);
-  }
+
   @Delete(':id/puestos/:puestoId')
   removePuesto(
     @Param('id', ParseIntPipe) id: number,
-    @Param('puestoId', ParseIntPipe) puestoId: number
+    @Param('puestoId', ParseIntPipe) puestoId: number,
   ) {
     return this.clientesService.removePuesto(id, puestoId);
   }

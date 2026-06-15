@@ -1,46 +1,50 @@
-import { IsInt, IsOptional, IsBoolean, IsString, Min } from 'class-validator';
+// dto/create-detalle-carga-for-operacion.dto.ts
+import { IsNumber, IsOptional, IsString, IsBoolean, Min } from 'class-validator';
 
 export class CreateDetalleCargaForOperacionDto {
-    @IsInt()
-    @Min(1)
+    @IsNumber()
     id_cliente_emisor!: number;
 
-    @IsInt()
-    @Min(1)
+    @IsNumber()
     id_fruta!: number;
 
+    @IsNumber()
     @IsOptional()
-    @IsInt()
-    @Min(1)
-    id_variedad?: number;
+    id_variedad?: number | null;
 
-    @IsInt()
-    @Min(1)
+    @IsNumber()
     id_tipo_jaba!: number;
 
-    @IsInt()
+    @IsNumber()
     @Min(1)
     cantidad_jabas!: number;
 
-    @IsOptional()
     @IsBoolean()
+    @IsOptional()
     es_reparto?: boolean;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     instruccion_reparto?: string;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     observaciones?: string;
 
-    @IsOptional()
-    @IsInt()
-    @Min(1)
-    id_cliente_receptor?: number;   // 👈 NUEVO
-
-
-    @IsOptional()
     @IsBoolean()
+    @IsOptional()
     requiere_retorno_jabas?: boolean;
+
+    // ✅ Nuevos campos para entrega manual
+    @IsNumber()
+    @IsOptional()
+    id_cliente_receptor?: number | null;
+
+    @IsNumber()
+    @IsOptional()
+    id_puesto?: number | null;
+
+    @IsString()
+    @IsOptional()
+    id_seccion?: string | null;
 }

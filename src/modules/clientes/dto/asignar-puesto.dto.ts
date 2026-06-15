@@ -1,11 +1,12 @@
-import { IsInt, IsOptional, IsString, IsIn } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class AsignarPuestoDto {
   @IsInt()
+  @Transform(({ value }) => parseInt(value))
   id_puesto!: number;
 
-  @IsOptional()
   @IsString()
-  @IsIn(['A', 'B', 'C'], { message: 'Sección debe ser A, B o C' })
-  seccion?: 'A' | 'B' | 'C';
+  @IsOptional()
+  seccion?: string;
 }

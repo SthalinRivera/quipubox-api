@@ -11,15 +11,6 @@ import { UpdateDetalleCalidadDto } from './dto/update-detalle-calidad.dto';
 export class DetalleCargaService {
   constructor(private prisma: PrismaService) { }
 
-  // ==================== DETALLES ====================
-
-  /**
-   * Crea un nuevo detalle de carga dentro de una operación.
-   * Si el detalle requiere reparto (es_reparto = true), automáticamente:
-   *  - Valida que se haya especificado un cliente receptor.
-   *  - Busca un puesto activo para ese cliente receptor (clientes_puestos con fecha_fin IS NULL).
-   *  - Crea un registro en items_reparto asociado al detalle.
-   */
   async create(operacionId: number, dto: CreateDetalleCargaForOperacionDto) {
     // 1. Verificar operación
     const operacion = await this.prisma.operaciones_carga.findUnique({
@@ -32,35 +23,7 @@ export class DetalleCargaService {
     // 2. Validar relaciones base
     await this.validateRelations(dto);
 
-    // 3. Si es reparto, validar cliente receptor y puesto activo
-    let puestoActivo: { id_puesto: number; seccion: string | null } | null = null;
-    if (dto.es_reparto) {
-      if (!dto.id_cliente_receptor) {
-        throw new BadRequestException('Para reparto es obligatorio indicar el cliente receptor');
-      }
-      const relacion = await this.prisma.clientes_puestos.findFirst({
-        where: {
-          id_cliente: dto.id_cliente_receptor,
-          fecha_fin: null,
-          estado: true,
-        },
-        select: {
-          id_puesto: true,
-          seccion: true,
-        },
-      });
-      if (!relacion) {
-        throw new BadRequestException(
-          `El cliente receptor no tiene un puesto activo. Asigne un puesto al cliente antes de crear el detalle.`,
-        );
-      }
-      puestoActivo = {
-        id_puesto: Number(relacion.id_puesto),
-        seccion: relacion.seccion,
-      };
-    }
-
-    // 4. Crear detalle de carga
+    // 3. Crear detalle de carga (sin item de reparto aún)
     const detalle = await this.prisma.detalle_carga.create({
       data: {
         id_empresa: 1,
@@ -83,30 +46,53 @@ export class DetalleCargaService {
       },
     });
 
-    // 5. Crear item de reparto si aplica
+    // 4. Crear item de reparto solo si es entrega manual (es_reparto = false)
     let itemReparto: Awaited<ReturnType<typeof this.prisma.items_reparto.create>> | null = null;
-    if (dto.es_reparto && dto.id_cliente_receptor && puestoActivo) {
+    if (dto.es_reparto === false) {
+      if (!dto.id_cliente_receptor || !dto.id_puesto) {
+        throw new BadRequestException('Para entrega manual debe especificar cliente receptor y puesto');
+      }
+
+      // Validar relación cliente-puesto activa
+      const relacion = await this.prisma.clientes_puestos.findFirst({
+        where: {
+          id_cliente: dto.id_cliente_receptor,
+          id_puesto: dto.id_puesto,
+          fecha_fin: null,
+          estado: true,
+        },
+        select: { seccion: true },
+      });
+      if (!relacion) {
+        throw new BadRequestException(`El cliente receptor no tiene el puesto ${dto.id_puesto} activo.`);
+      }
+
+      const seccionFinal = dto.id_seccion ?? relacion.seccion;
+
       itemReparto = await this.prisma.items_reparto.create({
         data: {
           id_empresa: 1,
           id_detalle_carga: detalle.id_detalle_carga,
           id_cliente_receptor: dto.id_cliente_receptor,
-          id_puesto: puestoActivo.id_puesto,
+          id_puesto: dto.id_puesto,
           cantidad_asignada: detalle.cantidad_jabas,
+          seccion: seccionFinal,
           orden_entrega: null,
           observaciones: dto.instruccion_reparto,
-          seccion: puestoActivo.seccion ?? null,
         },
         include: { clientes: true, puestos: true },
       });
     }
+
+    // 5. Actualizar estado de la operación si estaba pendiente
     if (operacion.estado === 'pendiente') {
       await this.prisma.operaciones_carga.update({
         where: { id_operacion: operacionId },
         data: { estado: 'en_curso' },
       });
     }
-    // 6. Retornar el detalle junto con el item de reparto (si existe)
+
+    // 6. Retornar el detalle junto con el item (si existe)
     return {
       ...detalle,
       item_reparto: itemReparto,

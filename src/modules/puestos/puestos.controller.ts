@@ -40,4 +40,13 @@ export class PuestosController {
   changeState(@Param('id', ParseIntPipe) id: number, @Body() updateStateDto: UpdateStateDto) {
     return this.puestosService.changeState(id, updateStateDto.estado);
   }
+
+  @Get('mercado/:idMercado')
+  async findByMercado(
+    @Param('idMercado') idMercado: string,
+    @Query('estado') estado?: string,
+  ) {
+    const estadoBool = estado === 'true' ? true : estado === 'false' ? false : undefined;
+    return this.puestosService.findByMercado(+idMercado, estadoBool);
+  }
 }

@@ -5,6 +5,8 @@ import { ItemsRepartoService } from './items-reparto.service';
 import { CreateItemRepartoDto } from './dto/create-items-reparto.dto';
 import { UpdateItemRepartoDto } from './dto/update-items-reparto.dto';
 import { QueryItemsRepartoDto } from './dto/query-items-reparto.dto';
+import { UpdateItemsRepartoDetalleDto } from './dto/update-items-reparto-detalle.dto';
+import { CreateItemsRepartoDetalleDto } from './dto/create-items-reparto-detalle.dto';
 
 @Controller('items-reparto')
 export class ItemsRepartoController {
@@ -38,5 +40,41 @@ export class ItemsRepartoController {
   @Patch(':id/estado')
   changeState(@Param('id', ParseIntPipe) id: number, @Body('estado') estado: string) {
     return this.service.changeState(id, estado);
+  }
+
+
+  @Post(':id/detalle')
+  async addDetalle(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateItemsRepartoDetalleDto,
+  ) {
+    return this.service.addDetalle(id, dto);
+  }
+
+  @Get('detalle')
+  async findAllDetalles() {
+    return this.service.findAllDetalles();
+  }
+  @Get(':id/detalle')
+  async findDetallesByItem(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findAllDetalles(id);
+  }
+
+  @Get('detalle/:detalleId')
+  async findOneDetalle(@Param('detalleId', ParseIntPipe) detalleId: number) {
+    return this.service.findOneDetalle(detalleId);
+  }
+
+  @Put('detalle/:detalleId')
+  async updateDetalle(
+    @Param('detalleId', ParseIntPipe) detalleId: number,
+    @Body() dto: UpdateItemsRepartoDetalleDto,
+  ) {
+    return this.service.updateDetalle(detalleId, dto);
+  }
+
+  @Delete('detalle/:detalleId')
+  async removeDetalle(@Param('detalleId', ParseIntPipe) detalleId: number) {
+    return this.service.removeDetalle(detalleId);
   }
 }

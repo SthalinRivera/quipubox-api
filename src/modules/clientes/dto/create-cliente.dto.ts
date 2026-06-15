@@ -1,31 +1,34 @@
-// src/clientes/dto/create-cliente.dto.ts
-import { IsString, IsOptional, IsBoolean, IsInt, Min, MaxLength, IsPhoneNumber } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsInt, Min, MaxLength, Matches } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateClienteDto {
   @IsInt()
+  @Transform(({ value }) => parseInt(value))
   id_empresa!: number;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   nombres!: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   apellidos?: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   apodo?: string;
 
+  @IsString()
   @IsOptional()
-  @IsPhoneNumber('PE') // o simplemente @IsString()
+  @Matches(/^[0-9]{9,15}$/, { message: 'Teléfono debe tener 9-15 dígitos' })
   telefono?: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   observaciones?: string;
 
-  @IsOptional()
   @IsBoolean()
+  @IsOptional()
   estado?: boolean;
-}
+}  

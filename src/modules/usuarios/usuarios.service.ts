@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { CreateFullUsuarioDto } from './dto/create-usuario-full.dto';
+import { UpdateFullUsuarioDto } from './dto/update-full-usuario.dto';
 
 @Injectable()
 export class UsuariosService {
   constructor(private readonly prisma: PrismaService) { }
 
+  // ==================== CRUD tradicional ====================
   async create(createUsuarioDto: CreateUsuarioDto) {
     const empresa = await this.prisma.empresas.findUnique({
       where: { id_empresa: BigInt(createUsuarioDto.id_empresa) },
@@ -40,6 +43,131 @@ export class UsuariosService {
     });
   }
 
+  async createFull(dto: CreateFullUsuarioDto) {
+    // Validar email único antes de la transacción
+    const existingEmail = await this.prisma.usuarios.findFirst({
+      where: { email: dto.email },
+    });
+    if (existingEmail) throw new ConflictException('El email ya está registrado');
+
+    // Validar que todos los roles existan (opcional pero recomendado)
+    if (dto.roles && dto.roles.length > 0) {
+      const rolesExistentes = await this.prisma.roles_usuarios.findMany({
+        where: { id_rol_usuario: { in: dto.roles.map(id => BigInt(id)) } },
+      });
+      if (rolesExistentes.length !== dto.roles.length) {
+        throw new BadRequestException('Uno o más roles no existen');
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Validar empresa
+      const empresa = await tx.empresas.findUnique({
+        where: { id_empresa: BigInt(dto.id_empresa) },
+      });
+      if (!empresa) throw new NotFoundException('Empresa no encontrada');
+
+      // 2. Validar sede
+      const sede = await tx.sedes.findFirst({
+        where: {
+          id_sede: BigInt(dto.id_sede),
+          id_empresa: BigInt(dto.id_empresa),
+        },
+      });
+      if (!sede) throw new NotFoundException('Sede no válida para la empresa');
+
+      // 3. Crear usuario
+      const usuario = await tx.usuarios.create({
+        data: {
+          nombres: dto.nombres,
+          apellidos: dto.apellidos,
+          email: dto.email,
+          telefono: dto.telefono,
+          id_empresa: BigInt(dto.id_empresa),
+          id_sede: BigInt(dto.id_sede),
+          estado: dto.estado ?? true,
+        },
+      });
+
+      // 4. Asignar roles (dentro de la misma transacción)
+      await this.syncRoles(tx, usuario.id_usuario, dto.roles);
+
+      // 5. ✅ Retornar el usuario usando tx (NO this.prisma)
+      return tx.usuarios.findUnique({
+        where: { id_usuario: usuario.id_usuario },
+        include: {
+          empresas: true,
+          sedes: true,
+          usuarios_roles: {
+            include: { roles_usuarios: true },
+          },
+        },
+      });
+    });
+  }
+
+  async updateFull(id: number, dto: UpdateFullUsuarioDto) {
+    return this.prisma.$transaction(async (tx) => {
+      // Verificar existencia
+      const existing = await tx.usuarios.findUnique({
+        where: { id_usuario: BigInt(id) },
+      });
+      if (!existing) throw new NotFoundException(`Usuario ${id} no encontrado`);
+
+      // Validar email único si se cambia
+      if (dto.email && dto.email !== existing.email) {
+        const emailExists = await tx.usuarios.findFirst({
+          where: { email: dto.email, id_usuario: { not: BigInt(id) } },
+        });
+        if (emailExists) throw new ConflictException('El email ya está en uso por otro usuario');
+      }
+
+      // Validar empresa-sede si se cambia alguno
+      if (dto.id_empresa !== undefined || dto.id_sede !== undefined) {
+        const empresaId = dto.id_empresa ?? Number(existing.id_empresa);
+        const sedeId = dto.id_sede ?? Number(existing.id_sede);
+        const sedeValida = await tx.sedes.findFirst({
+          where: { id_sede: BigInt(sedeId), id_empresa: BigInt(empresaId) },
+        });
+        if (!sedeValida) throw new BadRequestException('La sede no pertenece a la empresa');
+      }
+
+      // Actualizar datos básicos
+      const updateData: any = {};
+      if (dto.nombres !== undefined) updateData.nombres = dto.nombres;
+      if (dto.apellidos !== undefined) updateData.apellidos = dto.apellidos;
+      if (dto.email !== undefined) updateData.email = dto.email;
+      if (dto.telefono !== undefined) updateData.telefono = dto.telefono;
+      if (dto.id_empresa !== undefined) updateData.id_empresa = BigInt(dto.id_empresa);
+      if (dto.id_sede !== undefined) updateData.id_sede = BigInt(dto.id_sede);
+      if (dto.estado !== undefined) updateData.estado = dto.estado;
+
+      if (Object.keys(updateData).length > 0) {
+        await tx.usuarios.update({
+          where: { id_usuario: BigInt(id) },
+          data: updateData,
+        });
+      }
+
+      // Sincronizar roles si vienen
+      if (dto.roles !== undefined) {
+        await this.syncRoles(tx, BigInt(id), dto.roles);
+      }
+
+      // ✅ Retornar usando tx
+      return tx.usuarios.findUnique({
+        where: { id_usuario: BigInt(id) },
+        include: {
+          empresas: true,
+          sedes: true,
+          usuarios_roles: {
+            include: { roles_usuarios: true },
+          },
+        },
+      });
+    });
+  }
+
   async findAll() {
     return this.prisma.usuarios.findMany({
       include: {
@@ -57,14 +185,15 @@ export class UsuariosService {
       include: {
         empresas: true,
         sedes: true,
-        usuarios_roles: { include: { roles_usuarios: true } },
+        usuarios_roles: {
+          include: { roles_usuarios: true },
+        },
       },
     });
-    if (!usuario) throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    if (!usuario) throw new NotFoundException(`Usuario ${id} no encontrado`);
     return usuario;
   }
 
-  // PUT: actualización completa (se envía todo el objeto)
   async update(id: number, updateUsuarioDto: UpdateUsuarioDto) {
     try {
       if (updateUsuarioDto.id_empresa) {
@@ -104,14 +233,10 @@ export class UsuariosService {
     }
   }
 
-  // Soft delete: cambiar estado a false
   async changeState(id: number, estado: boolean) {
     return this.update(id, { estado } as any);
   }
 
-
-
-  // Asignar rol
   async assignRole(usuarioId: number, rolId: number) {
     const usuario = await this.prisma.usuarios.findUnique({
       where: { id_usuario: BigInt(usuarioId) },
@@ -124,10 +249,7 @@ export class UsuariosService {
     if (!rol) throw new NotFoundException('Rol no encontrado');
 
     const existing = await this.prisma.usuarios_roles.findFirst({
-      where: {
-        id_usuario: BigInt(usuarioId),
-        id_rol_usuario: BigInt(rolId),
-      },
+      where: { id_usuario: BigInt(usuarioId), id_rol_usuario: BigInt(rolId) },
     });
     if (existing) throw new BadRequestException('El usuario ya tiene este rol');
 
@@ -139,22 +261,26 @@ export class UsuariosService {
     });
   }
 
-  // Eliminar rol
   async removeRole(usuarioId: number, rolId: number) {
-    const relation = await this.prisma.usuarios_roles.findFirst({
-      where: {
-        id_usuario: BigInt(usuarioId),
-        id_rol_usuario: BigInt(rolId),
-      },
-    });
-    if (!relation) throw new NotFoundException('Relación usuario-rol no encontrada');
+    return this.prisma.$transaction(async (tx) => {
+      const relation = await tx.usuarios_roles.findFirst({
+        where: { id_usuario: BigInt(usuarioId), id_rol_usuario: BigInt(rolId) },
+      });
+      if (!relation) throw new NotFoundException('Relación no encontrada');
 
-    return this.prisma.usuarios_roles.delete({
-      where: { id_usuario_rol: relation.id_usuario_rol },
+      const count = await tx.usuarios_roles.count({
+        where: { id_usuario: BigInt(usuarioId) },
+      });
+      if (count <= 1) {
+        throw new BadRequestException('No se puede eliminar el único rol del usuario');
+      }
+
+      return tx.usuarios_roles.delete({
+        where: { id_usuario_rol: relation.id_usuario_rol },
+      });
     });
   }
 
-  // Obtener roles de un usuario
   async getRolesByUser(usuarioId: number) {
     const usuario = await this.prisma.usuarios.findUnique({
       where: { id_usuario: BigInt(usuarioId) },
@@ -162,5 +288,31 @@ export class UsuariosService {
     });
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
     return usuario.usuarios_roles.map((ur) => ur.roles_usuarios);
+  }
+
+  private async syncRoles(tx: any, usuarioId: bigint, nuevosRolesIds: number[]) {
+    for (const rolId of nuevosRolesIds) {
+      const rol = await tx.roles_usuarios.findUnique({
+        where: { id_rol_usuario: BigInt(rolId) },
+      });
+      if (!rol) throw new NotFoundException(`Rol con ID ${rolId} no existe`);
+    }
+
+    await tx.usuarios_roles.deleteMany({
+      where: { id_usuario: usuarioId },
+    });
+
+    if (nuevosRolesIds.length === 0) {
+      throw new BadRequestException('El usuario debe tener al menos un rol');
+    }
+
+    for (const rolId of nuevosRolesIds) {
+      await tx.usuarios_roles.create({
+        data: {
+          id_usuario: usuarioId,
+          id_rol_usuario: BigInt(rolId),
+        },
+      });
+    }
   }
 }

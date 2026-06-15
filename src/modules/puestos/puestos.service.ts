@@ -33,9 +33,10 @@ export class PuestosService {
     });
   }
 
-  async findAll(estado?: boolean) {
+  async findAll(estado?: boolean, mercadoId?: number) {
     const where: any = {};
     if (estado !== undefined) where.estado = estado;
+    if (mercadoId) where.id_lugar = BigInt(mercadoId);
     return this.prisma.puestos.findMany({
       where,
       include: {
@@ -89,5 +90,32 @@ export class PuestosService {
 
   async changeState(id: number, estado: boolean) {
     return this.update(id, { estado });
+  }
+
+
+  // PuestosService
+  async findByMercado(mercadoId: number, estado?: boolean) {
+    const where: any = {
+      id_lugar: BigInt(mercadoId),
+    };
+    if (estado !== undefined) where.estado = estado;
+
+    // Opcional: verificar que el lugar exista y sea un mercado
+    const mercado = await this.prisma.lugares_operativos.findFirst({
+      where: {
+        id_lugar: BigInt(mercadoId),
+        tipo_lugar: 'mercado',
+      },
+    });
+    if (!mercado) throw new NotFoundException(`Mercado con ID ${mercadoId} no encontrado`);
+
+    return this.prisma.puestos.findMany({
+      where,
+      include: {
+        empresas: true,
+        lugares_operativos: true,
+      },
+      orderBy: { numero_puesto: 'asc' },
+    });
   }
 }
